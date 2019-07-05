@@ -1,0 +1,240 @@
+---
+title: |
+  | Barcelona Summer School of Demography
+  | \vspace{1.5cm} \LARGE\emph{Module~1.~Introduction to R}
+  | \vspace{0.3cm} \huge\textbf{2.~Tidy Pipelines}\vspace{0.6cm}
+fontsize: 11pt
+geometry: a4paper, twoside, left=2.5cm, right=2.5cm, top=3.2cm, bottom=2.8cm, headsep
+  = 1.35cm, footskip = 1.6cm
+output:
+  pdf_document:
+    number_sections: yes
+    fig_caption: yes
+  html_document2: default
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document2: default
+header-includes:
+- \usepackage{titling}
+- \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=6cm]{logotipCED.png}\\[\bigskipamount]}
+- \posttitle{\end{center}}
+- \usepackage{fancyhdr}
+- \usepackage{wrapfig}
+- \pagestyle{fancy}
+- \fancyhead[LE]{\thepage~\qquad~Barcelona Summer School of Demography}
+- \fancyhead[RE]{Module~1.~Introduction to R}
+- \fancyhead[LO]{Tidy pipelines}
+- \fancyhead[RO]{T.~Riffe~\qquad~\thepage}
+- \fancyfoot[CO,CE]{\includegraphics[width=2.8cm]{logotipCED.png}}
+bibliography: bibliography.bib
+---
+		
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+				
+---
+AUTHORS for PDF: It will not show up when compiling into HTML
+Delete one of the mini pages if only 1 author/instructor
+---
+
+\noindent\makebox[\textwidth][c]{
+\begin{minipage}[t]{0.45\textwidth}
+\centering
+\Large{Tim Riffe} \\
+\vspace{0.1cm}\large{\texttt{riffe@demogr.mpg.de}}
+\end{minipage}
+%  \begin{minipage}[t]{0.45\textwidth}
+%    \centering
+%    \Large{Author 2} \\
+%    \vspace{0.1cm}\large{\texttt{Email address}}
+%  \end{minipage}
+}
+
+
+\vspace{0.8cm}
+\begin{center}
+\large{2 July 2019}
+\end{center}
+\vspace{0.8cm}
+				
+---
+The following command will provide a table of contents.
+---
+\tableofcontents
+				
+---
+Use # for Sections, ## for Subsections, and ### for Subsubsections
+---
+				
+# Data processing verbalized
+
+We know we'll need tidyverse functions today, so let's just get this loaded:
+```{r}
+library(tidyverse)
+```
+
+So coincidentally a friend Joan G. asked me how to make this plot in `R` the other day:
+
+![](Screenshot.png)
+
+It looks like we have time of day in $x$, population percentile in $y$, and filled areas indicate what fraction of people are doing different activities. The table underlying this was derived from survey microdata. 
+
+Remember we can't really go this high with qualitative colors very easy, and we may or may not avoid this issue. I've asked him for the raw data that came before the final table that went into this plot so that we can see those steps too in `R` (Thanks JG!).
+
+This by the way turns out to be a super advanced example. We will build it up incrementally together, and it features many of the `dplyr` heroes: 
+
+1. `gather()` make a wide range of columns tidy
+2. `mutate()` make new columns using other columns, no loss of rows
+3. `select()` selects columns
+4. `filter()` selects rows (subsets)
+5. `group_by()` allows operations on subgroups
+6. `ungroup()` removes the former
+7. `summarize()` aggregates over rows. Usually reduces nr of rows
+
+and some useful but less important functions that do specific things:
+
+7. `separate()` splits a column into two
+8. `remove_na()` replaces `NA`s with some value
+9. `n()` counts cases, usually in grouped data
+
+There are a couple seemingly silly but important things to note about this data processing pipline: i) most of the operations are verbs, ii) it's all a single flow, strung together with `%>%` which you can read as "and then do this". You can find a nice overview of `dplyr` functions here:
+[https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf](https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf)
+
+First let's read in Joan's data. It's in an SPSS format, so we'll use the `haven` package, which knows what to do with it. Let's take a look at this data.
+```{r}
+library(haven)
+JG <- read_spss("caseid_aggr.sav") 
+```
+
+The columns are similar to factors: but really they mimick the value-label style of SPSS. The actual values are just integers, and each integer stands for an activity. When we reshape to a tidy style we'll lose that information, just for the sake of being able to label activities in the plot later, we save in an object them now.
+```{r}
+activities <- attr(JG$time_1000_max,"labels")
+```
+
+And now begins the pipeline: 
+
+1. We pull the 1440 minute-stamped columns into a single column `activity`, and the column labels are pulled into the column `Time`. We give the range of columns to gather with `time_1_max:time_1440_max`.
+
+```{r}
+JG <- JG %>% 
+	sample_n(1000) %>%         # reduce size for testing purposes
+	gather(key = "Time",       # new column for header names
+		   value = "activity", # new column for value collected
+		   time_1_max:time_1440_max) %>% 
+	separate(col = Time, 
+			 into = c(NA,"time",NA), 
+			 sep ="_", 
+			 remove = TRUE, 
+			 convert = TRUE) %>% 
+	select(CASEID, time, activity) %>% # only cols we need
+	filter(time %% 10 == 1) %>%     # cut rows to every 10th
+	group_by(time, activity) %>%
+	summarise(n = n()) %>% 
+	mutate(freq = n / sum(n, na.rm = TRUE)) %>%
+	ungroup() %>%
+	mutate(activity = factor(activity, 
+							 levels = activities,
+							 labels = names(activities))) %>% 
+	replace_na(list(freq = 0))
+
+     # tip for largish data:
+gc() # free up memory no longer needed
+```
+
+Now we have the final dataset that we want to plot: it literally contains the fraction of time (`freq`) spent doing different activities (`activity`) in 10 minute steps through the day (`time`). Nothing less and nothing more.
+
+In plotting this we will introduce a new `geom`: `geom_area()` to make our filled areas. Here's a first rough stab at it. You see we have the basic structure, and everything from here on out is going to be plot detail management.
+```{r}
+ggplot(JG, mapping = aes(x = time, y = freq, fill = activity)) + 
+	geom_area()
+```
+
+For the sake of a semi complete solution, here's a way to get more meaningful $x$ and $y$ breaks and labels.
+```{r}
+# Figure out time labels...
+# we have minutes since 4:00AM,
+# so hour = (time - 1) / 60
+mins    <- seq(0,1440,by=10)
+hrs     <- seq(0, 1430, by = 120)
+hrslabs <- paste(c(seq(4, 24, by = 2),2), "00", sep = ":")
+
+ggplot(JG, mapping = aes(x = time, y = freq, fill = activity)) + 
+	geom_area() + 
+	scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+	scale_x_continuous(breaks = hrs, 
+					   labels = hrslabs) + 
+	labs(x = "Time of day",
+		 y = "Percentile",
+		 title = "Fraction of time spent doing stuff")
+```
+
+Joan G. told me that time is expressed in minutes since 4:00 AM, so that's my reference point. I'd like a label every two hours, so 120 minutes `seq(0, 1440, by = 120)` gives me a vector of hour breaks exrpressed in minutes. Now I produce the labels using similar tricks, `paste()` concatenates things together with an optional separator (`:`) in our case. We just need to remember that we have 24 hours of data, so at the end we add a break for 2:00 AM. These are then set using `scale_x_continuous()` (because `time` is continuous here). To get percentile labels on the $y$ axis I used a function from the `scales` package (solution found on Stack Overflow, that's right).
+
+```{r, echo = FALSE, results = "hide"}
+rm(JG);gc()
+```
+
+# Worked example number 2
+
+Here is a file I downloaded from the Human Fertility Collection [https://www.fertilitydata.org/cgi-bin/index.php](https://www.fertilitydata.org/cgi-bin/index.php), it's somewhat tidy already, but we'll still need to do things to it to .
+```{r}
+HFC <- read_csv("HFC_ASFRstand_TOT.txt", 
+				na = ".")
+#str(HFC)
+```
+
+This is a rather large and underexploited data source. We have age-specific fertility rates for many countries and years. There's one inconsistency in the age definition that probably only demographers care about, can explain if you want. Also, sometimes the same year and place has more than one estimate, so we'll want to be careful picking out all the potential grouping variables if using `group_by()`.
+
+Let's use the `HFC` dataset to plot some different things.
+
+# Exercises
+
+**\large Exercise 1.1: ** 
+ 
+How about we get a glimpse of the full variety of fertility curves in there? Let's make a single line graph with all ASFR patterns plotted. To do this, you'll need to identify subsets, which is a major drawback with this dataset, so here's a tip for that:
+
+```{r}
+
+HFC$YrInt  <- HFC$Year2 - HFC$Year1 + 1
+HFC$sub_id <- group_indices(HFC,
+							Country, 
+						    Year1, 
+							Region, 
+							Urban, 
+							Origin, 
+							AgeDef, 
+							Vitality, 
+							Collection, 
+							SourceType, 
+							RefCode,
+							YrInt)
+```
+Now `sub_id` can be your grouping variable. Give it a try:
+```{r, eval = FALSE}
+# ggplot(HFC ...) +
+#	geom_ ...
+```
+It will be tricky to get this plot to work due to overplotting. Try reducing `alpha` to something small.
+
+```{r, eval = FALSE, results = "hide", echo = FALSE, message = FALSE}
+ggplot(HFC, mapping = aes(x = Age, 
+						  y = ASFR)) +
+	geom_line(aes(group = sub_id), alpha = .02) + 
+	geom_quantile(method = "qss", 
+				  lambda = 1, 
+				  quantiles = c(.1,.25,.5,.75,.9), 
+				  color = "red")
+```
+
+**\large Exercise 1.2: ** 
+Plot the time series of the total fertility rate (TFR) for 5 or so selected countries. You choose which (note they're not all there). If you're not sure about country codes used, you can check here: [https://www.fertilitydata.org/cgi-bin/country_codes.php](https://www.fertilitydata.org/cgi-bin/country_codes.php)
+
+**\large Exercise 1.3: ** 
+To be determined ad hoc
+
+
+
+
+
