@@ -9,7 +9,5 @@ This repository has everything but the data. That means that if you clone it you
 4. `04_Thursday` -- `CoaleData.rds`
 5. `05_Friday` -- `B.rds`, `HFD.rds`
 
-The repository includes all Lecture pdfs, and the Rmarkdown files from which they were generated. The repository is missing some pieces needed to re-knit the Lecture pdfs. The Rmarkdown files are so that you can see how they were generated, in case you're curious.
-
-All class scripts (called ClassNotes.Rmd in each folder) should knit properly if the data is placed where noted above.
+The repository includes all Lecture pdfs and all class scripts (called `ClassNotes.Rmd` in each folder), and all these things should knit properly if the data is placed where noted above.
 
