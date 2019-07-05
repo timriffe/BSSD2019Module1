@@ -1,0 +1,66 @@
+---
+title: "Super Tricky Challenge"
+author: "Tim Riffe"
+date: "July 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# The super tricky challenge
+
+1. start with HFC (use those groups!)
+2. Get TFR and MAB, but keep the age detail (`mutate()`)
+3. Make TFR intervals, for example rounded to .25.
+4. Make a column that identifies the highest and lowest MAB (like, maybe it uses NA for the others).
+5. Within each interval pick out the lowest observed and highest observed MAB, and throw out the rest (`filter()`.
+6. install the `ggridges` package.
+7. make a ridge plot where TFR intervals are the levels, and on each plot two distributions: the distribution (ASFR) belonging to the highest and lowest observed MAB.
+
+First: I copy-paste the data prep we used before:
+
+```{r, fig.height = 10, fig.width = 5}
+library(tidyverse)
+run_this <- FALSE
+if (run_this){
+HFC <- read_csv("HFC_ASFRstand_TOT.txt", na = '.')
+
+HFC <- HFC %>%
+	mutate(YearInt = Year2 - Year1 + 1) 
+HFC$sub_id <- group_indices(HFC,
+							Country, 
+						    Year1, 
+							AgeDef, 
+							Vitality, 
+							Collection, 
+							SourceType, 
+							RefCode,
+							YearInt)
+
+HFCextremes <- HFC %>% 
+	group_by(sub_id) %>% 
+	mutate(TFR = sum(ASFR, na.rm = TRUE),
+		   MAB = sum(ASFR * Age, na.rm = TRUE) / TFR,
+		   TFRint = TFR - TFR %% .25) %>% 
+	ungroup() %>% 
+	group_by(TFRint) %>% 
+	mutate(MABmax = MAB == max(MAB),
+		   MABmin = MAB == min(MAB)) %>% 
+	filter((MABmax | MABmin) & (TFR < 6)) %>% 
+	mutate(extremes = ifelse(MABmax,"high MAB", "low MAB"))
+
+saveRDS(HFCextremes, file = "HFCextremes.rds")
+}
+
+HFCextremes <- readRDS("HFCextremes.rds")
+library(ggridges)
+
+ggplot(HFCextremes, mapping = aes(x = Age, 
+								  y = as.factor(TFRint))) +
+	geom_ridgeline(aes(height = ASFR, fill = extremes), 
+				   scale = 4, alpha = .5)
+
+```
+

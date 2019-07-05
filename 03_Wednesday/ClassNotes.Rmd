@@ -1,0 +1,265 @@
+---
+title: "Wednesday Class Notes"
+author: "Tim Riffe"
+date: "July 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Functions
+
+```{r}
+hello <- function(your_name){
+	paste0("Hello ", your_name, "!")
+}
+hello("Tim")
+```
+
+An arithmetic example using more than one argument
+```{r}
+x <- rnorm(10)
+sqrt(mean((x - mean(x, na.rm = TRUE))^2, na.rm = TRUE))
+
+my_sd <- function(x, na.rm = TRUE){
+  xbar   <- mean(x, na.rm = na.rm)
+  res    <- x - xbar
+  ressq  <- res^2
+  meansq <- mean(ressq, na.rm = na.rm)
+  sqrt(meansq)
+}
+```
+
+# now we're going to get into lifetables.
+
+When writing functions, it's helpful to do so with live code, to be able to test as we go along. So, let's make a fake `mx` to use as we go.
+```{r}
+omega <- 110
+x     <- 0:omega
+a     <- 0.00022
+b     <- 0.07
+
+# these are our test objects:
+mx    <- a * exp(x * b)
+ax    <- rep(.5, length(mx))
+```
+
+## conditional probability of dying between $x$ and $x+1$.
+$$q(x) = \frac{m(x)}{1 + (1 - a(x)) \cdot m(x)}$$
+```{r}
+
+mxax_to_qx <- function(mx, ax){
+  qx    <- mx / (1 + (1 - ax) * mx)
+  n     <- length(mx)
+  qx[n] <- 1
+  return(qx)
+}
+# mxax_to_qx(mx, ax)
+```
+
+# conditional probability of surviving the interval:
+$$ p(x) = 1 - q(x) $$
+```{r}
+qx_to_px <- function(qx){
+  px <- 1 - qx
+  return(px)
+}
+
+```
+
+# lifetable survivorship, $l(x)$
+This is literally the probability of surviving from birth to age $x$
+$$ l(x) = \prod_{i=0}^{x-1} p(i)$$
+Detail: $l(0)$ for us is 1, the above formula sticks onto the end of it. We can just throw out the last value because it'll be too long otherwise. We want to keep everything the same length.
+
+```{r}
+px_to_lx <- function(px){
+	n  <- length(px)
+	lx <- c(1, cumprod(px[-n]))
+    lx
+}
+
+mxax_to_lx <- function(mx, ax){
+	qx <- mxax_to_qx(mx, ax)
+	px <- qx_to_px(qx)
+	lx <- px_to_lx(px)
+	lx
+}
+```
+# the lifetable death distribution, $d(x)$
+
+$$ d(x) = l(x)q(x)$$
+```{r}
+lxqx_to_dx <- function(lx, qx){
+	lx * qx
+}
+```
+
+# Lifetable exposure, $L(x)$
+$$L(x) = l(x) - (1 - a(x)) \cdot d(x)$$
+```{r}
+lxaxdx_to_Lx <- function(lx, ax, dx){
+	Lx <- lx - (1 - ax) * dx
+	return(Lx)
+}
+
+qxax_to_Lx <- function(qx, ax){
+	lx <- px_to_lx(1 - qx)
+	dx <- lxqx_to_dx(lx, qx)
+	Lx <- lx - (1 - ax) * dx
+	return(Lx)
+}
+```
+
+# total remaining year of life, $T(x)$
+
+$$ T(x) = \sum _{i=x}^\omega L(i) $$
+```{r}
+Lx_to_Tx <- function(Lx){
+   Tx <- rev(cumsum(rev(Lx)))
+   return(Tx)
+}
+```
+
+# life expectancy $e(x)$
+$$ e(x) = \frac{T(x)}{l(x)} $$
+```{r}
+Txlx_to_ex <- function(Tx, lx){
+	ex <- Tx / lx
+	return(ex)
+}
+```
+
+# now for a lifetable function
+
+First, an old-fashioned one
+```{r}
+my_lt <- function(mx, ax, x){
+  qx <- mxax_to_qx(mx, ax)
+  px <- qx_to_px(qx)
+  lx <- px_to_lx(px)
+  dx <- lxqx_to_dx(lx, qx)
+  Lx <- qxax_to_Lx(qx, ax)
+  Tx <- Lx_to_Tx(Lx)
+  ex <- Txlx_to_ex(Tx, lx)
+
+  LT <- data.frame(Age = x,
+		   mx = mx,
+		   ax = ax,
+		   qx = qx,
+		   px = px,
+		   lx = lx,
+		   dx = dx,
+		   Lx = Lx,
+		   Tx = Tx,
+		   ex = ex)
+  return(LT)
+}
+
+my_lt(mx = mx, ax = ax, x = x)
+```
+
+# and now for a more concise way of writing that
+
+This one just makes one call to `mutate()` to do it all, but note we have three arguments. 
+```{r}
+library(tidyverse)
+my_lt2 <- function(mx, ax, x){
+	require(tidyverse)
+data.frame(Age = x, mx = mx, ax = ax) %>% 
+	mutate( qx = mxax_to_qx(mx, ax),
+            px = qx_to_px(qx),
+            lx = px_to_lx(px),
+            dx = lxqx_to_dx(lx, qx),
+            Lx = qxax_to_Lx(qx, ax),
+            Tx = Lx_to_Tx(Lx),
+            ex = Txlx_to_ex(Tx, lx))
+}
+```
+
+I thought it'd be slicker to put into a pipeline if it took one argument, a subset of the data. Here `LTi` is a single lifetable subset (ages 0-110, one sex and year)
+```{r}
+my_lt3 <- function(LTi){
+	require(tidyverse)
+LTi %>% 
+	mutate( qx = mxax_to_qx(mx, ax),
+            px = qx_to_px(qx),
+            lx = px_to_lx(px),
+            dx = lxqx_to_dx(lx, qx),
+            Lx = qxax_to_Lx(qx, ax),
+            Tx = Lx_to_Tx(Lx),
+            ex = Txlx_to_ex(Tx, lx))
+}
+```
+
+# Exercise
+
+1. Calculate the full lifetable for each combination of Country, Year, and Sex in the HMD. Use a pipeline. Do it however you want. Try using our new lifetable function. Or just a call to mutate, whatever. When it came time to apply these functions some people had minor differences in code that caused things to break, so I copied all the functions down to here into `LifeTableFunctions.R` and emailed those, then we saw how to source. At least then we could treat this point in the course as a clean break, with a before and after, to be able to resync here.
+```{r}
+source("LifeTableFunctions.R")
+
+# this one is a once-off calc, not taking advantage of our LT functions
+readRDS("HMD.rds") %>% 
+	group_by(Country, Sex, Year) %>% 
+		mutate( qx = mxax_to_qx(mx, ax),
+            px = qx_to_px(qx),
+            lx = px_to_lx(px),
+            dx = lxqx_to_dx(lx, qx),
+            Lx = qxax_to_Lx(qx, ax),
+            Tx = Lx_to_Tx(Lx),
+            ex = Txlx_to_ex(Tx, lx)) 
+
+# This one does, here also assigning back to HMD
+HMD <- readRDS("HMD.rds") %>% 
+	group_by(Country, Sex, Year) %>% 
+		my_lt3() 
+
+```
+
+2. Plot the time series of life expectancy at birth (or some other age) for each country and sex, maybe giving a different color to males and females.
+
+```{r}
+HMD %>% 
+	filter(Age == 0) %>% 
+    ggplot(mapping = aes(x = Year,
+	   		   y = ex,
+			   color = factor(Sex))) +
+	geom_line(mapping = aes(group = interaction(Country, Sex)),
+			  alpha = .5)
+
+```
+
+# Extra exercises
+1. Calculate a new column $e^\dagger$ and make a scatterplot of that vs life expectancy at birth.
+
+$$ \sum e^\dagger = d(x) \cdot e(x)$$
+```{r}
+HMD %>% 
+	group_by(Country, Sex, Year) %>% 
+	mutate(edagger = sum(dx * ex)) %>% 
+	filter(Age == 0) %>% 
+	ggplot(mapping = aes(x = ex, y = edagger, color = Year)) + 
+	geom_point(alpha = .3)
+```
+2. Derive the Oeppen-Vaupel line
+
+Select males or females, then select the highest life expectancy per year (throw out the rest?). Then plot that (scatterplot OK), and fit a line to it.
+
+What's the slope of that line? How do you interpret it?
+```{r}
+HMD %>% 
+	filter(Age == 0 & Sex == "f") %>% 
+	group_by(Year) %>% 
+	filter(ex == max(ex) &
+		   	Year > 1840) %>%
+	ungroup() %>% 
+    ggplot(mapping = aes(x = Year, 
+							 y = ex)) +
+	geom_point(aes(color = Country)) +
+	geom_smooth(method = "lm")
+```
+
+
+
