@@ -1,0 +1,209 @@
+---
+title: |
+  | Barcelona Summer School of Demography
+  | \vspace{1.5cm} \LARGE\emph{Module~1.~Introduction to R}
+  | \vspace{0.3cm} \huge\textbf{3.~Functions}\vspace{0.6cm}
+fontsize: 11pt
+geometry: a4paper, twoside, left=2.5cm, right=2.5cm, top=3.2cm, bottom=2.8cm, headsep
+  = 1.35cm, footskip = 1.6cm
+output:
+  pdf_document:
+    number_sections: yes
+    fig_caption: yes
+  html_document2: default
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document2: default
+header-includes:
+- \usepackage{titling}
+- \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=6cm]{logotipCED.png}\\[\bigskipamount]}
+- \posttitle{\end{center}}
+- \usepackage{fancyhdr}
+- \usepackage{wrapfig}
+- \pagestyle{fancy}
+- \fancyhead[LE]{\thepage~\qquad~Barcelona Summer School of Demography}
+- \fancyhead[RE]{Module~1.~Introduction to R}
+- \fancyhead[LO]{Functons}
+- \fancyhead[RO]{T.~Riffe~\qquad~\thepage}
+- \fancyfoot[CO,CE]{\includegraphics[width=2.8cm]{logotipCED.png}}
+bibliography: bibliography.bib
+---
+		
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+				
+---
+AUTHORS for PDF: It will not show up when compiling into HTML
+Delete one of the mini pages if only 1 author/instructor
+---
+
+\noindent\makebox[\textwidth][c]{
+\begin{minipage}[t]{0.45\textwidth}
+\centering
+\Large{Tim Riffe} \\
+\vspace{0.1cm}\large{\texttt{riffe@demogr.mpg.de}}
+\end{minipage}
+%  \begin{minipage}[t]{0.45\textwidth}
+%    \centering
+%    \Large{Author 2} \\
+%    \vspace{0.1cm}\large{\texttt{Email address}}
+%  \end{minipage}
+}
+
+
+\vspace{0.8cm}
+\begin{center}
+\large{3 July 2019}
+\end{center}
+\vspace{0.8cm}
+				
+---
+The following command will provide a table of contents.
+---
+\tableofcontents
+				
+---
+Use # for Sections, ## for Subsections, and ### for Subsubsections
+---
+
+# Functions
+So, we've thus far been writing code that does stuff... duh. The code consists in data being read in, doing stuff to it using functions (so far mostly from the tidyverse), assigning new objects from time to time, and plotting using functions. Think of the tidy pipeline from Tuesday. One of the longer pipelines maybe had 30 or so lines of code in it. That type of coding is common in research practice, and we refer to that kind of code as `R` scripts. It's often once-off code, and that's just fine. But what if ... what if you wanted to re-used the code a lot? What if you had a method of your own, your own way of doing things? Then do you really want to type all that code over and over in the future, have to remember it? What if you did that--- always retyping the same scripts repeatedly --- and then decided to change how to do it. Maybe you fix a bug, make it more robust or faster, or simply have a better way? Then do you have to go and hunt down all the times you wrote that code? That would be horrible. It's not a good use of anyone's time, and it's also fragile. We can do better. We can write functions.
+
+# The anatomy of a function
+
+Here's an oldy but goody:
+```{r}
+hello <- function(your_name){
+	paste0("Hello ", your_name, ". Have a nice day!")
+}
+hello("Tim")
+```
+
+1. `hello` is the name of the new function, which we know because
+2. `<- function(){}` is being assigned to it, which creates functions
+3. The thing in the parentheses `(your_name)` is the name of an argument to be used 
+4. The part inside `{ }` is the body of the function, presumably making use of `your_name`.
+5. In this particular case we're using the function `paste0()`, which concatenates text, including our argument `your_name`.
+
+Those are the parts of a function. The function can have more arguments, which could be any kind of data of any size and shape, and the stuff that happens inside the function (inside `{ }`) should know what to do with the arguments. It should produce a result, and return it. For our little function above, it returns a character string (the last thing evaluated). In our case it printed to console because we didn't assign it to anything. We can be more explicit about that by telling it what to return:
+
+```{r}
+# Identical in this case
+hello <- function(your_name){
+	out <- paste0("Hello ", your_name, ". Have a nice day!")
+	return(out)
+}
+hello("Tim")
+```
+
+So here's an outline:
+```{r, eval = FALSE}
+function_name <- function(arguments){
+	# do stuff with arguments
+	return(result)
+}
+```
+
+Functions can be very large. Let's look at some:
+```{r, eval = FALSE}
+lm # type into console with no parentheses to see the guts of a function
+```
+
+# Modularity
+As you can see in our cheap example, functions can use other functions, as long they can be found. I think we should start straight away with an exercise. Below I give a bunch of equations for lifetables. Start with a variable `mx`, a.k.a. $m(x)$, or $\mu(x)$ if you can pretend it's continuous. We'll also need a helper-variable `ax` that tells us something about mortality within age intervals- This is one we usually assume something for, and we can be lazy and just say it's always $0.5$ for single age data.
+
+If the mortality rate is constant in the interval, then we have some relationships that I think we can program as little functions. I think it's always a good idea to write functions with test data, so how about you use this as your test `mx` and `ax`:
+
+```{r}
+omega <- 110 # last age 
+x     <- 0:omega
+a     <- 0.00022
+b     <- .07
+mx    <- a * exp(x*b)
+ax    <- rep(.5, length(mx))
+```
+
+### conditional probability of death in an age interval: $q(x)$
+$$q(x) = \frac{m(x)}{1 + (1 - a(x)) \cdot m(x)}$$
+Write a function called `mxax_to_qx()`, taking arguments `mx` and `ax` and returning a variable `qx`. Note, `mx` and `ax` should be the same length (one element per age class).  Note, it's common to declare that the very last value of $q(x)$ is 1, i.e. that no one survives beyond that age.
+
+```{r}
+# mxax_to_qx <- 
+```
+### conditional survival $p(x)$
+$$ p(x) = 1 - q(x) $$
+
+### survivorship, $l(x)$
+
+Survivorship (a.k.a the survivor curve) is the cumulative product of $p(x)$. Tip: there is a function called `cumprod()`.
+$$ l(x) = \prod _{i=0}^{x-1} p(i) $$
+
+### death distribution, $d(x)$
+The lifetable death distribution, $d(x)$ is the probability at birth of dying in a given age.
+
+$$d(x) = l(x) \cdot q(x) $$
+Or you could also think of it as the decrement of $l(x)$
+$$ d(x) = l(x) - l(x+1)$$
+Can you make a function `lxqx_to_dx()`? What about `mxax_to_dx()` (make it use the previous functions!), or just `lx_to_dx()`? For this last one, note it's common if $\omega$ is nice and big to just assume that no one survives beyond that age.
+
+### Lifetable exposure, $L(x)$
+What I call lifetable exposure is supposed to mean something like the total lifetable person-years lived between age $x$ and $x+1$.
+
+$$L(x) = l(x) - (1 - a(x)) \cdot d(x)$$
+write `lxax_to_dx()`
+
+### Total remaining survivorship, $T(x)$
+
+$$ T(x) = \sum_{i=x}^\omega L(i)$$
+Try to write `Lx_to_Tx()`. This is tricky since we haven't talked about loops, but you can do it by creatively combining `rev()` (flip a vector backwards) and `cumsum()`. 
+
+### Life expectancy, $e(x)$
+The average length of life left at each age in the lifetable.
+
+$$ e(x) = \frac{T(x)}{l(x)}$$
+
+Can you write function `lxTx_to_ex()`? What about `mxax_to_ex()`? If you do the second one, try to make it modular, i.e. use the little functions written earlier.
+
+# The real exercise
+
+By now we have a nice collection of lifetable transformation functions. As is, these are little utility functions. Note, if you have a `data.frame` with `mx` and `dx` as columns, you can make a whole lifetable with a single call to `mutate()`!
+
+```{r, eval = FALSE}
+data.frame(mx=mx, ax=ax) %>% 
+mutate(LT,
+	   Age = 0:n(),
+	   qx = maxax_to(qx),
+	   ...)
+```
+ 
+Now turn that into a lifetable function, you've now made a collection of functions that exhibit modularity. These are little functions aren't they? That's the goal! But sometimes things get complicated inside functions. Then the trick is to find units of code that seem generalizable, and turn them into functions.
+
+Let's take a break to look at some functions in the `DemoTools` package, here. We'll see some loops being used there, and I might narrate them, but we'll get more into that tomorrow. A nice and under-appreciated way to learn to code is to read it, so let's just do that a while.
+
+# Exercises
+
+**\large Exercise 1.3.1: ** 
+ 
+Read in the dataset `HMD.rds`:
+
+```{r}
+HMD <- readRDS("HMD.rds")
+```
+
+This dataset is the entire HMD, where there is a lifetable subset for each unique combination of `Country`, `Sex`, and `Year`. Complete the lifetable for the entire dataset **using your new function in a tidy pipeline**.
+
+**\large Exercise 1.3.2: ** 
+
+$e(x)^\dagger$, pronounced e-dagger is the average year of life lost due to death in the lifetable, and one way to calculate it looks like this:
+
+$$ e(x)^\dagger = \sum_{i=x}^\omega \frac{d(i)}{l(x)}  e(x) $$
+That is to say, this is a function patterned by age $e(x)^\dagger$. If you want to calculate this for each age then you'll probably want to write a loop, which we've not done yet. But you can calculate it for age 0 without a loop, in which case:
+
+ $$ e(0)^\dagger = \sum_0^\omega d(x)e(x)$$
+Write a function that does this, and calculate $e(0)^\dagger$ for each Country, Sex, and Year. Also save $e(0)$, i.e. the value of $e(x)$ where `Age == 0`. Are you going to do this with `mutate()` or with `summarize()`? Can you plot the relationship between $e(0)$ and $e(0)^\dagger$? Make a scatterplot of this. If it's super overlapped try transparency. Maybe add a `geom_smooth()` on top of it, your choice of method.
+
+**\large Exercise 1.3.3: ** 
+
+TBD
