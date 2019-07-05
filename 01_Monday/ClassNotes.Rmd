@@ -1,0 +1,172 @@
+---
+title: "Monday Notes"
+author: "Tim Riffe"
+date: "July 1, 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# What is `R`?
+
+1. It's functional:
+```{r}
+a <- 43
+b <- 21
+a+b
+# same thing but this actually looks like a function:
+sum(a,b)
+```
+
+2. extensible: people make packages
+
+```{r, eval = FALSE}
+install.packages("gapminder")
+# install.packages("adiv")
+install.packages("tidyverse")
+```
+
+3. a statistical language
+
+```{r}
+x <- rnorm(10)
+y <- x * 2 * runif(10, min = .9, max = 1.1)
+lm(y~x)
+```
+
+# gapminder
+
+Gapminder is a tidy dataset.
+
+Right about here I showed examples of tidy and
+not tidy datasets.
+```{r}
+library(gapminder)
+head(gapminder)
+
+```
+We also see code to look into a data object and see what's there. Plus a clicky way.
+
+And then Kristen asked about case sensitivity in `R` (yes it is!) and we invoked an error and then I showed how to search for errors. The `searcher` package seems pretty great.
+
+See, try typing this in the console (both lines)
+```{r, eval = FALSE}
+library(searcher)
+str(Gapminder) # wrong case!
+search_google() # what happened?
+"a" + 1
+search_stackoverflow()
+```
+It would appear that if you want to use this search shortcut, then it's better to copy and paste the error straight in the search function as a character string, e.g.: `search_stackoverflow("Error in "a" + 1 : non-numeric argument to binary operator")`. 
+
+FYI: if you knit this document with `install.packages()` or anything trying to use the internet then it can hang. Best to include `eval = FALSE` in the chunk statement.
+
+
+```{r}
+library(tidyverse)
+p <- ggplot(data = gapminder,
+			mapping = aes(x = gdpPercap,
+					      y = lifeExp,
+						  color = continent)) 
+p <- p + geom_point() 
+p
+```
+
+Now we can *add* elements/metadata/instructions to the plot to make it the way we want:
+
+```{r}
+p <- ggplot(data = gapminder,
+			mapping = aes(x = gdpPercap,
+						  y = lifeExp))
+p + 
+	geom_point(alpha = .3, 
+			   size = .8,
+			   mapping=aes(color = continent)) +
+	scale_x_log10() +
+	geom_smooth(method = "loess")
+```
+
+Keys to find:
+```{r}
+# <- ^ * + - {} () [] ` ~
+```
+
+```{r}
+p <- ggplot(gapminder,
+			mapping = aes(x = gdpPercap,
+						  y = lifeExp))
+p + 
+    geom_point() + 
+	facet_wrap(~continent) +
+	scale_x_log10() + 
+	geom_smooth(method = "lm")
+```
+
+```{r}
+p <- ggplot(gapminder,
+			mapping = aes(x = gdpPercap,
+						  y = lifeExp,
+						  color = continent))
+p + 
+	geom_point() + 
+	facet_wrap(~year) + 
+	scale_x_log10() 
+
+```
+
+# Exercise 1
+
+Smoothers: Do a Preston scatterplot panel by continent, showing different smoothing methods on top of the point clouds. For your own thinking: how come different methods gives such different uncertainties and what does that say about the data vs the method (way out of the realm of this course)?
+
+```{r}
+p <- ggplot(gapminder,
+			mapping = aes(x = gdpPercap,
+						  y = lifeExp)) +
+	 geom_point(alpha = .3) + 
+	facet_wrap(~continent) +
+	scale_x_log10()
+# 1) linear fits
+p + geom_smooth(method = 'lm')
+# 2) loess fits
+p + geom_smooth(method = "loess")
+# 3) GAM
+p + geom_smooth(method = "gam", 
+				formula = y~poly(x, 2))
+# 4) GLM
+p + geom_smooth(method = "glm")
+
+```
+
+# Exercise 2
+
+There is a geom called `geom_density()` that draws a density function fit to your data. It only wants an `x`, not a `y`. You can have different overlapped densities by specifying `alpha = .5`, `fill=x` (where x is the thing you want to vary color on, continent in our case). You can subset data using `filter(gapminder,continent != "Oceania")`, to get rid of Oceania for example. Your challenge: Make a two panel plot, showing the `gdpPercap` density by continents in 1952 and 2007, where the density for each continent has a different semitransparent color. This will exercise like 5 things we learned, plus you'll use subsetting. This one's for Mr. Rosling. Do the same for `lifeExp`.
+
+```{r}
+gap2 <- filter(gapminder, continent != "Oceania" &
+			   	((year == 1952) | (year == 2007))
+			   )
+gap2 <- filter(gapminder, continent != "Oceania" &
+			   	year %in% c(1952, 2007)
+			   )
+ggplot(data = gap2,
+	   mapping = aes(x = gdpPercap,
+	   			  fill = continent)) +
+	geom_density(alpha = .5) + 
+	facet_wrap(~year) + 
+	scale_x_log10()
+
+ggplot(data = gap2,
+	   mapping = aes(x = lifeExp,
+	   			  fill = continent)) +
+	geom_density(alpha = .5) + 
+	facet_wrap(~year) 
+```
+
+
+
+
+
