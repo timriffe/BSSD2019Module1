@@ -1,0 +1,371 @@
+---
+title: "Thursday Class Notes"
+author: "Tim Riffe"
+date: "July 4, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Conditional execution, `if`
+
+inside the parentheses we need a statement that evaluates to either `TRUE` or `FALSE`. If it is `TRUE`, then run the code inside `{}`, and if it is `FALSE` just skip over it. And you're free to put whatever you want inside the `{}`.
+```{r}
+x <- rnorm(10)
+if (mean(x) > 0){
+	print("I'm feeling lucky!")
+	sd(x)
+}
+```
+ 
+What if we have a plan B? If the condition is `TRUE` then do the first thing, and if it's `FALSE` then do what comes after `else`. It's an either-or thing, you can't do both.
+
+```{r}
+x <- -1
+if (mean(x) > 0){
+	print("I'm feeling lucky!")
+} else {
+	print("Today is just not my day :-(")
+}
+```
+
+# different kinds of conditions
+
+Here's one where two things need to be `TRUE`
+```{r}
+r1 <- rnorm(1)
+r2 <- rnorm(1)
+if (r1 > 0 & r2 > 0){
+	print("Both random numbers are positive")
+} else {
+	print("At least one of the numbers was negative")
+}
+```
+
+Here's one where either the first or the second thing needs to be `TRUE`
+
+```{r}
+r1 <- rnorm(1)
+r2 <- rnorm(1)
+if (r1 > 0 | r2 > 0){
+	print("Both random numbers are positive")
+} else {
+	print("At least one of the numbers was negative")
+}
+```
+
+What about testing many things at a time?
+
+```{r}
+education <- c("Secondary", "Terciary", "Secondary",
+			   "Secondary", "Terciary", "Primary")
+ifelse(education == "Terciary", 1, 0)
+```
+
+What if we have more than two outcomes? If it's just a few condtions, then you can nest:
+```{r}
+ifelse(education == "Terciary",          # first condition
+	   2,                                # first if
+	   ifelse(education == "Secondary",  # first else, second condition
+	   	   1,                            # second if
+	   	   0))                           # second else
+```
+
+But if it's a more complicated recode, then try this handy dandy function from the `tidyverse`.
+
+```{r}
+library(tidyverse)
+x <- 1:50
+case_when(
+	x %% 35 == 0 ~ "fixx buzz!",
+	x %% 7 == 0 ~ "buzz",
+	x %% 5 == 0 ~ "fizz",
+	TRUE ~ as.character(x)
+)
+```
+
+Another `case_when()` example using simulated years of schooling.
+
+```{r}
+
+yrs_schooling <- sample(c(0:16,NA), 
+	                    size = 100,
+	                    replace = TRUE)
+
+recoded <- case_when(
+	      yrs_schooling == 0 ~ "No schooling",
+		  yrs_schooling %in% 1:7 ~ "Primary",
+		  yrs_schooling %in% 8:12 ~ "Secondary",
+		  yrs_schooling %in% 13:16 ~ "Terciary",
+		  TRUE ~ as.character(NA))
+#	data.frame(yrs_schooling, recoded)	 
+```
+
+More ways to test conditions, `any()` tests if any element of a condition (which could be a big'ol vector) evaluates to `TRUE`, then we get a `TRUE`, EVEN IF all the others are `FALSE`. `all()` tests whether all elements of a vector meet some criterion.
+
+```{r}
+is.na(yrs_schooling)
+any(is.na(yrs_schooling))
+all(!is.na(yrs_schooling))
+
+rp <- rpois(10, lambda = 10)
+all(rp > 0)
+any(rp > 15)
+
+```
+
+# Iteration
+
+I talked a bit about how I used iteration to download, harmonize, and compile your big HMD file. This first example has different things happening inside the loop, but the main thing to note is that I'm using country codes as the iterator, that these swap out one at a time to download the data. This will work for you too if you install `HMDHFDplus`, register at HMD, and make two login variables: `us` is a character string of your username, and `pw` is a character string of you password.
+```{r, eval = FALSE}
+library(HMDHFDplus)
+Countries <- getHMDcountries()
+Countries # this is what we iterate over
+
+# mini example of iteration
+for (XYZ in Countries){
+	print(XYZ)
+	Sys.sleep(.1)
+}
+
+HMD <- list() # container
+for (XYZ in Countries){
+	cat(XYZ,"\n")
+	
+	Males       <- readHMDweb(XYZ, "mltper_1x1", us, pw)
+	Females     <- readHMDweb(XYZ, "fltper_1x1", us, pw)
+	
+	Males$Sex   <- "m"
+	Females$Sex <- "f"
+	Out         <- rbind(Females, Males)
+	Out$Country <- XYZ
+	HMD[[XYZ]]  <- Out
+}
+# bind_rows() is from tidyverse
+HMD <- bind_rows(HMD)
+```
+
+More loop examples: homemade `cumsum()`
+
+```{r}
+x <- sort(runif(50))
+xcumsum <- rep(0,50)
+for (i in 1:50){
+	xcumsum[i] <- sum(x[1:i])
+}
+cumsum(x)
+xcumsum
+```
+
+# Let's make a Collatz function.
+ You give it an integer, and it calculates the Collatz number of that integer. Here we built the function from the inside out. If you look at the completed thing it got big, but here's the basic heart of it:
+```{r}
+int   <- 13
+maxit <- 1000
+
+for (i in 1:maxit){
+       if (int %% 2 == 0){ 
+ 	      int <- int / 2
+       } else {
+	      int <- int * 3 + 1
+       } # end if-else
+       if (int == 1){
+          break
+       } # end break
+}
+i
+```
+ 
+And here's the function, with some added sugar:
+```{r}
+Collatz <- function(int, maxit = 1000){
+	int <- as.integer(int) # this is polite, but not robust
+	# footnote: You can insist that certain conditions
+	# are met when writing a function, and tell the 
+	# function to just stop if they're not met.
+	stopifnot(length(int) == 1)
+	
+    # Special case when user gives 1, 
+    # then we want to avoid the loop	
+    if (int == 1){
+  	  return(0)
+    }	
+	
+	# This is the heart of the algorithm
+    # this is the loop, it should stop when we get there
+    for (i in 1:maxit){
+       if (int %% 2 == 0){ 
+ 	      int <- int / 2
+       } else {
+	      int <- int * 3 + 1
+       } # end if-else
+  	
+  	# this is the break, it tells us when we get there
+  	# and gives a way out of the loop
+       if (int == 1){
+          break
+       } # end break
+     } # end loop
+     if (i == maxit & int != 1){
+   	   warning("used up all available iterations\nand still didn't get to 1, increase maxit")
+   }
+	return(i)
+} # end function
+
+Collatz(1L)
+Collatz(2L)
+```
+
+Now try it out
+```{r}
+N <- 1000
+cnumbers <- rep(0, N)
+for (i in as.integer(1:N)){
+	cnumbers[i] <- Collatz(i)
+}
+
+data.frame(i = 1:N, collatz = cnumbers) %>% 
+	ggplot(mapping = aes(x = i,
+						 y = collatz)) + 
+	geom_point(alpha = .5) +
+	labs(title = "Wow, patterns!")
+
+```
+ 
+# Another `for` loop example
+
+Fibonacci numbers: each new element to the series is the sum of the preceding two. The ratio of the $i^{th}$ element to the $(i-1)^{th}$ element approaches the Golden Ratio.
+
+```{r}
+N          <- 15
+position_i <- 1:N
+fib_i      <- rep(0,N)
+gr_i       <- rep(0,N)
+
+fib_i[1:2] <- 0:1
+
+for (i in 3:N){
+	# sum of preceding two
+	fib_i[i] <- sum(fib_i[c(i - 2, i - 1)])
+	# ratio of the ith to the (i-1)th fib nrs
+	gr_i[i]  <- fib_i[i] / fib_i[i - 1]
+}
+
+data.frame(i = position_i, gr = gr_i) %>% 
+	ggplot(mapping = aes(x = i, y = gr)) +
+	geom_line()
+
+gr_i[i]
+1.61803398875
+```
+
+# New example
+
+Challenge: calculate the square root of a number using Newton's algorithm.
+
+Steps: take a number $x$. This is the number you want the root of.
+
+1. make a guess, $\tilde{y}$
+2. calculate $q$
+$$ q = \frac{x}{\tilde{y}}$$
+3. take average of $\tilde{y}$ and $q$ as new guess:
+$$ \tilde{y} = (\tilde{y} + q)/2$$
+4. Repeat
+5. if the change in $\tilde{y}$ is negligible then we have found the square root, and we can stop the loop.
+
+```{r }
+ NewtonSqrt <- function(x, ytilde, tol = 1e-12, maxit = 1000){
+   for (i in 1:maxit){
+     q          <- x / ytilde
+     ytilde_new <- (ytilde + q)/2
+     
+     # check for convergence
+     if ((ytilde_new - ytilde)^2 < tol){
+   	   break
+     }
+     ytilde     <- ytilde_new
+   } # end loop
+  abs(ytilde) # cheap hack!
+ }
+ 
+  NewtonSqrt(60001.24735782,100,-7) 
+```
+
+# Final example, Coale's iterative method to find $r$
+
+This is once-off code to get you guys some input vectors from which to estimate $r$
+```{r, eval = FALSE}
+library(here)
+# I'll use this package to help build paths relative to the location
+# of my rstudio project file. If your folders look different than mine,
+# then this chunk may break! For this reason, I'll assume you have the
+# CoaleData.rds that I emailed you in the same folder where this script is
+
+# 1) get fertility rates to mess with:
+ESP <- read_csv(here("03_Wednesday","HFC_ASFRstand_TOT.txt"), na = '.') %>%
+	mutate(YearInt = Year2 - Year1 + 1) %>% 
+    filter(Country == "ESP" & Year1 == 2000)
+# hackish selection of the first subset
+ESP <- ESP[1:37, ]
+# .4878 was my hackish assumption of the proportion female at birth.
+# sry changed this later to something closer to 1/2.05
+fxf <- ESP$ASFR * .4878
+# pad zeros
+fxf <- c(rep(0,14), fxf, rep(0,60))
+
+# load functions from yesterday
+source(here("03_Wednesday", "LifeTableFunctions.R"))
+# now get Lx
+Lx <- readRDS(here("03_Wednesday","HMD.rds")) %>% 
+	group_by(Country, Sex, Year) %>% 
+		my_lt3()  %>% 
+	filter(Country == "ESP" &
+		   Sex == "f" &
+		   Year == 2000) %>% 
+	pull(Lx) # grab just a column!!
+# FYI select(Lx) grabs the column but also the stuff in group_by()!
+
+Out <- data.frame(x = 0:110, fxf = fxf, Lx = Lx)
+saveRDS(Out, file = "CoaleData.rds")
+``` 
+
+Now for the exercise: Use Coale's algorithm to estimate $r$. Does it work?
+
+Formula correction:
+$$ r^{i+1} = r^i + \frac{\delta}{T - \delta/r^i}$$
+In the function, the numbered steps 1-4 mirror the formulas in the handout (except I call $T$ $G$ instead, sorry, and also correcting for my formula typo)
+```{r}
+Dat <- readRDS("CoaleData.rds")
+Lx  <- Dat$Lx
+fxf <- Dat$fxf
+x   <- Dat$x
+
+Coales_r <- function(Lx,fxf,x){
+  # 1) get R0
+  R0 <- sum(Lx * fxf)
+  # 2) assume T (but I'll call it G, sorry)
+  G   <- 29
+  # 3) follow formula for first guess at r:
+  ri  <- log(R0) / G
+  # 4) now start the loop that updates r:
+  for (i in 1:100){
+    # step 1:
+    delta <- sum(exp(-ri*x)*fxf*Lx) - 1
+    # step 2:
+    ri <- ri + (delta / (G - (delta / ri)))
+  }
+  return(ri)
+}
+# let's see if it converged:
+r <- Coales_r(Lx, fxf, x)
+sum(exp(-r * x) * fxf  *Lx)
+```
+
+
+
+
+
+
+

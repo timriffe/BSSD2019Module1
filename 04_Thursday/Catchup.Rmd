@@ -1,0 +1,28 @@
+---
+title: "Catch-up"
+author: "Tim Riffe"
+date: "July 4, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Sometimes a little deviation causes a large departure
+
+Hi everyone,
+As we've all seen, sometimes a small bug, like a typo, can break things, and at first it's hard to spot these errors. Another example (and many of you have been spotting these), sometimes we've made pipelines with `head()` at the end, moving along to make sure new columns are being created as we expect. If we forget to remove `head()` from the end of the pipe then the data gets cut down to the first  6 rows! Sometimes we try to run code that depends on objects or functions having been created, but then it makes an error because we forgot to actually run that code! Sometimes we don't know whether to use `()` (function args), `[]` selecting or subsetting manually, `{}` function bodies, or similar. Sometimes we're uncertain about whether to quote text or not. The list goes on and on, but if you keep hacking you always get through it. And when these things happen time after time it can stifle the big picture.
+
+If this type of thing has been holding you back and you feel that you're not learning because of it, then I want to know. We can do something about it.
+
+What to do:
+
+1. Tell me, and I can look at your code and explain what went wrong (usually). That's how learning happens.
+
+2. Work through the class scripts and other material I've given.
+
+3. I've mentioned the Healy book before. He says some of this stuff but in different words, and probably explains things in more detail. It's heavier on `ggplot()`, but you'll still get a good `dplyr` introduction. In that case, an accelerated rehash of the concepts we worked through can be found in the appendices, pages 237-257, and in chapters 3 and 5. This can be worked through in a single afternoon I think. That is, read and type along. You can get the book for free online [https://socviz.co/](https://socviz.co/)
+
