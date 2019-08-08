@@ -93,7 +93,7 @@ This by the way turns out to be a super advanced example. We will build it up in
 6. `ungroup()` removes the former
 7. `summarize()` aggregates over rows. Usually reduces nr of rows
 
-and some useful but less important functions that do specific things:
+and some useful utility functions that do specific things:
 
 7. `separate()` splits a column into two
 8. `remove_na()` replaces `NA`s with some value
@@ -107,8 +107,11 @@ First let's read in Joan's data. It's in an SPSS format, so we'll use the `haven
 library(haven)
 JG <- read_spss("caseid_aggr.sav") 
 ```
-
-The columns are similar to factors: but really they mimick the value-label style of SPSS. The actual values are just integers, and each integer stands for an activity. When we reshape to a tidy style we'll lose that information, just for the sake of being able to label activities in the plot later, we save in an object them now.
+```{r}
+head(JG[,1:12])
+dim(JG)
+```
+The columns are similar to factors: but really they mimick the value-label style of SPSS. The actual values are just integers, and each integer stands for an activity. When we reshape to a tidy style we'll lose that information, just for the sake of being able to label activities in the plot later, we save them in an object now.
 ```{r}
 activities <- attr(JG$time_1000_max,"labels")
 ```
@@ -144,6 +147,24 @@ gc() # free up memory no longer needed
 ```
 
 Now we have the final dataset that we want to plot: it literally contains the fraction of time (`freq`) spent doing different activities (`activity`) in 10 minute steps through the day (`time`). Nothing less and nothing more.
+
+Let's call this a pipeline, because `JG` gets passed *through* a series of functions in the order presented. The best way to understand a pipeline like the above is to ineractively see how the data gets modified at each step, so it's a good idea to do so incrementally in the `ClassNotes.Rmd` file. But here's an overview of the steps in there:
+
+1. `sample_n(1000)` The data is big and push the limits of my measly 4Gb of RAM, so this line samples 1000 rows from the data (about 1/8).
+2. `gather()` This is the key step for going from wide to *tidy*. 1440 columns are 
+   -`key = "Time"` collects the column headers from wide format and turns them into a variable in a new column called `"Time"`
+   -`value = "activity"` says that the contents of all the columns being gathered will be put into a new variable called `"activity"`.
+   -`time_1_max:time_1440_max` says to gather columns starting from `time_1_max` all the way to `time_1440_max`, so 1440 columns with 1000 elements each will now become two columns with 1440000 elements each.
+3. `separate()` is used to extract more useful information from the column `Time`: we just want the integer in the middle.
+   -`col = Time` specifies which column to split
+   -`int = c(NA,"time",NA)` says what the new columns will be called (`NA` placeholders are used to discard pieces)
+   -`sep = "_"` says to split the column on the underscores. So, in a first pass, `"time_1_max"` is turned into `"time"`, `"1"`, and `"max"`, but the `NA` placeholders throw out the first and last bits.
+   -`"remove = TRUE"` says to delete the `"Time"` column when we're done.
+   -`"convert = TRUE"` says to coerce newly created columns (`"time"` in our case) to a sensical form. In our case `"1"` goes from character to integer, `1`. And the values of `"time"` will be integers 1 to 1440.
+4.
+   
+   
+
 
 In plotting this we will introduce a new `geom`: `geom_area()` to make our filled areas. Here's a first rough stab at it. You see we have the basic structure, and everything from here on out is going to be plot detail management.
 ```{r}

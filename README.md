@@ -1,5 +1,5 @@
 # BSSD2019Module1
-Handouts, course scripts, and data from BSSD 2019 Module 1: Introduction to R
+Handouts, course scripts, and data from [BSSD 2019](https://ced.uab.cat/courses/barcelona-summer-school-of-demography/) Module 1: Introduction to R
 
 This repository has everything required to reproduce the course scripts. That means that if you clone it you'll need to put the data where it belongs, distributed over the days of the week. Not all that efficient at this stage, but it worked as we progressed through the course. Here's where to put things, data files linked and downloadable where necessary.
 
